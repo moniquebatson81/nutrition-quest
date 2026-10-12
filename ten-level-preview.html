@@ -146,15 +146,15 @@ const THEMES=[
 ['Summit Sprint','#83bddc','#e8f7fa','#467f92'],['Fuel-Up Finale','#8aaee0','#f9d4e8','#8a68a6']
 ];
 const HEROES=[{n:'Ari',e:'👧🏿',skin:'#6b4128',hair:'#271a19',shirt:'#fa7f90',style:'puffs'},{n:'Mia',e:'👧🏼',skin:'#edc1a1',hair:'#8b5431',shirt:'#a394f7',style:'long'},{n:'Jay',e:'👦🏿',skin:'#6b4128',hair:'#1e1721',shirt:'#24cbbb',style:'short'},{n:'Leo',e:'👦🏼',skin:'#edc1a1',hair:'#513625',shirt:'#53a7fb',style:'short'}];
-const W=960,H=520,FLOOR=440,WORLD=4200;
+let W=960;const H=520,FLOOR=440,WORLD=4200;
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),overlay=document.getElementById('overlay'),panel=document.getElementById('panel');
 const keys={ArrowLeft:false,ArrowRight:false,ArrowUp:false,ArrowDown:false};
 let hero=0,level=0,terrain=[],hazards=[],pickups=[],stars=[],player={x:70,y:320,w:32,h:58,vy:0,ground:false},cam=0;
 let score=0,hearts=3,checkpoint=70,invulnerable=0,found=new Set(),frame=0,playing=false,paused=true,modal=false,audio=false,soundCtx=null,mealCursor=0,menuCursor=0;
-let selectedMeal=new Set(),modalType='',modalFood=null;
+let selectedMeal=new Set(),modalType='',modalFood=null,jumpLatch=false;
 function tone(freq=520){if(!audio)return;try{soundCtx??=new(window.AudioContext||window.webkitAudioContext)();const o=soundCtx.createOscillator(),g=soundCtx.createGain();o.connect(g);g.connect(soundCtx.destination);o.frequency.value=freq;g.gain.value=.035;o.start();o.stop(soundCtx.currentTime+.09)}catch(e){}}
 function foodFor(n){return CATEGORIES.map(g=>({category:g,name:DATA[g][n][0],emoji:DATA[g][n][1],fact:DATA[g][n][2]}))}
-function clearKeys(){Object.keys(keys).forEach(k=>keys[k]=false)}
+function clearKeys(){Object.keys(keys).forEach(k=>keys[k]=false);jumpLatch=false}
 function show(html,type){modal=true;paused=true;modalType=type;overlay.hidden=false;panel.innerHTML=html;clearKeys()}
 function hide(){modal=false;paused=false;modalType='';overlay.hidden=true;clearKeys()}
 function updateHud(){document.getElementById('levelhud').textContent='Level '+(level+1)+'/10';document.getElementById('health').textContent='❤️'.repeat(hearts)+'🤍'.repeat(3-hearts);document.getElementById('foodhud').textContent='Foods '+found.size+'/7';document.getElementById('scorehud').textContent='⭐ '+score;document.getElementById('subtitle').textContent='The Fuel-Up Adventure · '+THEMES[level][0]}
@@ -182,7 +182,7 @@ const positions=[
 ];
 for(let i=0;i<7;i++)pickups.push({x:positions[i][0],y:positions[i][1],food:food[i],done:false});
 for(let i=0;i<14;i++){const x=420+i*250;stars.push({x,y:FLOOR-103,done:false})}
-player={x:70,y:FLOOR-58,w:32,h:58,vy:0,ground:true,duck:false};cam=0;playing=true;paused=false;updateHud()
+player={x:70,y:FLOOR-58,w:32,h:58,vy:0,ground:true,duck:false};cam=0;playing=true;paused=false;jumpLatch=false;updateHud()
 }
 function introMenu(){
 playing=false;menuCursor=hero;
@@ -207,7 +207,7 @@ show('<h2>🌿 Level '+(level+1)+': '+THEMES[level][0]+'</h2><p>Find seven new f
 document.getElementById('continue').onclick=hide
 }
 function foodMessage(p){
-found.add(p.food.category);updateHud();tone(740);
+found.add(p.food.category);score+=10;updateHud();tone(740);
 show('<h2>'+p.food.emoji+' '+p.food.name+'</h2><p><strong>'+CATEGORY_LABEL[p.food.category]+'</strong></p><p>'+p.food.fact+'</p><p>Press ↑ or → to keep moving.</p><button id="continue">Continue ▶</button>','message');
 document.getElementById('continue').onclick=hide
 }
@@ -233,7 +233,8 @@ if(dx>0)nx=Math.min(nx,p.x-player.w);
 if(dx<0)nx=Math.max(nx,p.x+p.w);
 }}
 player.x=nx;
-if(keys.ArrowUp&&player.ground&&!player.duck){player.vy=-13.2;player.ground=false;tone(420)}
+if(!keys.ArrowUp)jumpLatch=false;
+if(keys.ArrowUp&&player.ground&&!player.duck&&!jumpLatch){player.vy=-13.2;player.ground=false;jumpLatch=true;tone(420)}
 const oldY=player.y;
 player.vy=Math.min(13.5,player.vy+.58);
 player.y+=player.vy;player.ground=false;
@@ -341,5 +342,7 @@ document.getElementById('pause').onclick=()=>{if(playing&&!modal){paused=!paused
 document.getElementById('restart').onclick=()=>{buildLevel(level,true);levelIntro()};
 document.getElementById('picklevel').onclick=levelMenu;
 document.getElementById('mute').onclick=()=>{audio=!audio;document.getElementById('mute').textContent=audio?'🔊 Sound on':'🔇 Sound off'};
+function fitScreen(){W=window.innerWidth<650?600:960;canvas.width=W}
+window.addEventListener('resize',fitScreen);fitScreen();
 introMenu();requestAnimationFrame(animate);
 </script></body></html>
