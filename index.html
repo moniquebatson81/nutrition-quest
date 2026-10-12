@@ -77,7 +77,7 @@ show(h);panel.querySelectorAll('[data-hero]').forEach(b=>b.onclick=()=>{hero=+b.
 document.getElementById('begin').onclick=()=>{init();close();show('<h2>🌲 Welcome to Food Forest!</h2><p>Use ← → to move, ↑ to jump over logs, and hold ↓ while moving to crawl under branches.</p><p>Collect foods and stars on your way to the Fuel-Up Station!</p><button id="go">Let’s play!</button>');document.getElementById('go').onclick=close}
 }
 function hurt(){if(invuln>0)return;hearts--;invuln=75;beep(180);updateHud();if(hearts===0){hearts=3;player.x=checkpoint;player.y=FLOOR-60;player.vy=0;show('<h2>💪 Give It Another Try!</h2><p>You keep your food discoveries and points. You’re back at your checkpoint with three hearts.</p><button id="retry">Keep exploring</button>');document.getElementById('retry').onclick=()=>{updateHud();close()}}else{player.x=Math.max(checkpoint,player.x-90);player.vy=-6}}
-function fact(f){found.add(selected.indexOf(f));score+=10;updateHud();beep(690);show('<h2>'+f.e+' '+f.n+'</h2><p>'+f.msg+'</p><button id="next">Continue adventure ▶</button>');document.getElementById('next').onclick=close}
+function fact(f){found.add(selected.indexOf(f));score+=10;updateHud();beep(690);show('<h2>'+f.e+' '+f.n+'</h2><p>'+f.msg+'</p><p><strong>Press → or ↑ to continue</strong></p><button id="next">Continue adventure ▶</button>');document.getElementById('next').onclick=close}
 function fuel(){
 atFinish=true;let choice=new Set(),h='<h2>🏁 Fuel-Up Station</h2><p>Choose foods for a varied meal or snack. Try a produce item, a protein food, and a grain. Water is a terrific drink!</p><div class="foodpick">';
 selected.forEach((f,i)=>h+='<button data-pick="'+i+'">'+f.e+' '+f.n+'</button>');
@@ -129,7 +129,31 @@ ctx.fillStyle=c.shirt;ctx.fillRect(x+4,y+26,29,player.h-34);ctx.fillStyle='#2232
 }
 ctx.restore();ctx.fillStyle='#1d4e45';ctx.font='bold 13px sans-serif';ctx.fillText('🌲 Food Forest',16,H-12)
 }
-document.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))e.preventDefault();keys[e.key]=true;if(e.key==='Escape'&&!modal)paused=!paused});
+document.addEventListener('keydown',e=>{
+if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))e.preventDefault();
+if(modal){
+  if(e.repeat)return;
+  const next=document.getElementById('next')||document.getElementById('go')||document.getElementById('retry');
+  if(next&&['ArrowRight','ArrowUp','Enter',' '].includes(e.key)){next.click();return}
+  const heroesButtons=[...panel.querySelectorAll('[data-hero]')];
+  if(heroesButtons.length){
+    if(e.key==='ArrowRight'||e.key==='ArrowLeft'){hero=(hero+(e.key==='ArrowRight'?1:heroes.length-1))%heroes.length;characterScreen();return}
+    if(e.key==='ArrowUp'||e.key==='Enter'){document.getElementById('begin')?.click();return}
+  }
+  const foodButtons=[...panel.querySelectorAll('[data-pick]')];
+  if(foodButtons.length){
+    if(e.key==='ArrowRight'||e.key==='ArrowLeft'){window.fuelCursor=(window.fuelCursor??0)+(e.key==='ArrowRight'?1:-1);window.fuelCursor=(window.fuelCursor+foodButtons.length)%foodButtons.length;foodButtons[window.fuelCursor].focus();return}
+    if(e.key==='ArrowUp'||e.key===' '){foodButtons[window.fuelCursor??0].click();return}
+    if(e.key==='ArrowDown'||e.key==='Enter'){document.getElementById('check')?.click();return}
+  }
+  const again=document.getElementById('again'),other=document.getElementById('other');
+  if(again&&['ArrowUp','ArrowRight','Enter'].includes(e.key)){again.click();return}
+  if(other&&e.key==='ArrowLeft'){other.click();return}
+  return;
+}
+keys[e.key]=true;
+if(e.key==='Escape')paused=!paused;
+});
 document.addEventListener('keyup',e=>{keys[e.key]=false});
 for(const b of document.querySelectorAll('[data-key]')){const k=b.dataset.key;const down=e=>{e.preventDefault();keys[k]=true;b.setPointerCapture?.(e.pointerId)};const up=e=>{e.preventDefault();keys[k]=false};b.addEventListener('pointerdown',down);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('lostpointercapture',up)}
 document.getElementById('pause').onclick=()=>{if(playing&&!modal)paused=!paused};
