@@ -177,7 +177,7 @@ if(n>=4)hazards.push({x:3250,type:'log',w:50});
 if(n>=6)hazards.push({x:3420,type:'branch',w:120});
 const food=foodFor(n);
 const positions=[
-[220,FLOOR-55],[850,FLOOR-55],[1350,FLOOR-166],[1940,FLOOR-55],
+[220,FLOOR-55],[850,FLOOR-55],[1350,FLOOR-166],[n>=2?2140:1940,n>=2?FLOOR-172:FLOOR-55],
 [2440,FLOOR-55],[n>=3?3030:2830,n>=3?FLOOR-166:FLOOR-55],[3870,FLOOR-55]
 ];
 for(let i=0;i<7;i++)pickups.push({x:positions[i][0],y:positions[i][1],food:food[i],done:false});
