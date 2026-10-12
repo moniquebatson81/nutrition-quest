@@ -246,12 +246,23 @@ if(player.y>H+130)respawn();
 const hazardsOn=hazards.filter(h=>h.type==='log'?overlapsPlayer({x:h.x,y:FLOOR-50,w:h.w,h:50}):overlapsPlayer({x:h.x,y:FLOOR-93,w:h.w,h:55}));
 if(hazardsOn.length)hit();
 if(invulnerable>0)invulnerable--;
-if(player.x>WORLD-250&&found.size===7){fuelStation();return}
-if(player.x>WORLD-220&&found.size<7&&frame%120===0){document.getElementById('subtitle').textContent='Find all 7 foods before visiting the Fuel-Up Station!'}
+// Enter the Fuel-Up Station on touching its entrance; never leave players stranded
+// if they missed a collectible on a raised platform.
+if(player.x+player.w>=3930){visitFinish();return}
 for(const p of pickups)if(!p.done&&intersects(player.x,player.y,player.w,player.h,{x:p.x-15,y:p.y-24,w:43,h:54})){p.done=true;foodMessage(p);break}
 for(const p of stars)if(!p.done&&intersects(player.x,player.y,player.w,player.h,{x:p.x-15,y:p.y-20,w:42,h:40})){p.done=true;score+=5;tone(920);updateHud()}
 if(player.x>=2250)checkpoint=2230;else if(player.x>=1640)checkpoint=1620;else if(player.x>=920)checkpoint=900;
 cam=Math.max(0,Math.min(WORLD-W,player.x-270))
+}
+function visitFinish(){
+const missed=pickups.filter(p=>!p.done);
+if(!missed.length){fuelStation();return}
+const details=missed.map(p=>'<p><strong>'+p.food.emoji+' '+p.food.name+' — '+CATEGORY_LABEL[p.food.category]+'</strong><br>'+p.food.fact+'</p>').join('');
+show('<h2>🏁 You Made It to the Fuel-Up Station!</h2><p>You missed '+missed.length+' food'+(missed.length===1?'':'s')+' along the trail. No problem! Review the discoveries below before making your meal.</p>'+details+'<p>↑ or → to continue</p><button id="continue">Build My Meal ▶</button>','message');
+document.getElementById('continue').onclick=()=>{
+for(const p of missed){p.done=true;found.add(p.food.category)}
+updateHud();fuelStation();
+};
 }
 function fuelStation(){
 selectedMeal=new Set();mealCursor=0;renderMeal()
