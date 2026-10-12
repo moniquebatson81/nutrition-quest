@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nutrition Quest — Ten-Level Adventure Preview</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,Segoe UI,sans-serif;background:#111d35;color:#f8fafc}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(#132447,#273f67);min-height:100vh}
+header{text-align:center;padding:12px 10px 5px}
+header small{font-weight:800;letter-spacing:.12em;color:#96f4d9}
+h1{margin:4px;font-size:clamp(23px,4vw,40px);color:#ffe08c}
+header p{margin:4px;color:#dcecfb}
+main{max-width:1030px;margin:0 auto;padding:8px}
+#frame{position:relative;border:4px solid #fbbf24;border-radius:15px;overflow:hidden;background:#7bd7f5}
+canvas{width:100%;height:auto;display:block;image-rendering:pixelated}
+#hud{pointer-events:none;position:absolute;inset:7px 8px auto;display:flex;gap:8px;justify-content:space-between;align-items:start;text-shadow:1px 2px #133;flex-wrap:wrap;font-weight:900;font-size:clamp(11px,1.8vw,16px)}
+#overlay{position:absolute;inset:0;background:#0d1939e9;display:grid;place-items:center;padding:9px;z-index:4}
+#overlay[hidden]{display:none}
+.panel{background:#fffcf0;color:#19243e;border:4px solid #f6bf51;border-radius:17px;max-width:750px;width:100%;max-height:100%;overflow:auto;padding:clamp(10px,2vw,23px);text-align:center}
+.panel h2{font-size:clamp(20px,3.3vw,30px);margin:0 0 9px}
+.panel p{margin:8px 0;line-height:1.45}
+button{font:inherit;font-weight:800;cursor:pointer;background:#fce38b;color:#18243b;border:2px solid #9a6429;border-radius:11px;padding:9px 13px}
+button:focus-visible,button:hover{outline:3px solid #22c55e;outline-offset:1px}
+.choices{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.choices button{min-width:0}.choices .selected,.food-grid .selected,.levels .selected{background:#7be0b2;border-color:#176b50}
+.avatar{display:block;font-size:34px}
+.levels{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:12px 0}
+.levels button{padding:10px 3px;font-size:13px}
+.levels strong{display:block;font-size:18px}
+.food-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:12px 0}
+.food-grid button{min-height:66px;padding:6px;font-size:13px}
+.food-grid .cursor{outline:3px solid #2563eb}
+#feedback{min-height:26px;color:#234a60;font-weight:700}
+#controls{display:flex;justify-content:space-between;gap:12px;margin:10px auto;max-width:850px;touch-action:none}
+.ctrl-group{display:flex;gap:8px}
+#controls button{width:clamp(45px,10vw,70px);height:55px;font-size:25px;background:#c8dffc;touch-action:none;user-select:none}
+#actions{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin:10px}
+#actions button{font-size:13px;padding:8px 11px}
+footer{color:#d5e9f8;text-align:center;font-size:13px;padding-bottom:18px;line-height:1.5}
+@media(max-width:600px){.levels{grid-template-columns:repeat(5,1fr)}.choices{grid-template-columns:repeat(2,1fr)}.food-grid{grid-template-columns:repeat(2,1fr)}#hud{font-size:11px}.panel{font-size:14px}#controls button{height:48px}}
+</style></head>
+<body>
+<header><small>MISSION WELL GAMES · TAN HEALTHCARE</small><h1>🍎 NUTRITION QUEST</h1><p id="subtitle">The Fuel-Up Adventure · 10-Level Preview</p></header>
+<main><div id="frame"><canvas id="game" width="960" height="520" aria-label="Nutrition Quest side scrolling platform game"></canvas>
+<div id="hud"><span id="levelhud">Level 1/10</span><span id="health">❤️❤️❤️</span><span id="foodhud">Foods 0/7</span><span id="scorehud">⭐ 0</span></div>
+<div id="overlay"><div class="panel" id="panel"></div></div></div>
+<div id="controls"><div class="ctrl-group"><button data-arrow="ArrowLeft" aria-label="Walk left">◀</button><button data-arrow="ArrowRight" aria-label="Walk right">▶</button></div><div class="ctrl-group"><button data-arrow="ArrowDown" aria-label="Duck or crawl">▼</button><button data-arrow="ArrowUp" aria-label="Jump or confirm">▲</button></div></div>
+<div id="actions"><button id="pause">Pause</button><button id="restart">Restart Level</button><button id="picklevel">Choose Level</button><button id="mute">🔇 Sound off</button></div>
+<footer>Desktop: ← → move, ↑ jump, ↓ duck/crawl. Menus: ← → select, ↑ confirm, ↓ check a meal. Hold touch arrows simultaneously on phones/tablets. No login or personal data collection.<br>Each level has a new protein, vegetable, fruit, grain, starchy food, treat and drink. Foods are not labeled good or bad.</footer>
+</main>
+<script>
+'use strict';
+const DATA={
+protein:[
+['Egg','🥚','Eggs provide protein to support growth and muscle repair.'],
+['Chicken','🍗','Chicken supplies protein that helps your body build and repair tissues.'],
+['Black beans','🫘','Black beans provide plant protein and fiber.'],
+['Tofu','🍱','Tofu is made from soybeans and provides plant protein.'],
+['Salmon','🐟','Salmon offers protein and omega-3 fats.'],
+['Greek yogurt','🥣','Plain Greek yogurt supplies protein and calcium.'],
+['Turkey','🍖','Turkey provides protein that supports body growth.'],
+['Lentils','🫘','Lentils provide plant protein, fiber and iron.'],
+['Chickpeas','🫘','Chickpeas provide plant protein and fiber.'],
+['Peanut butter','🥜','Peanut butter contains protein and unsaturated fats; avoid it if you have a peanut allergy.']
+],
+vegetable:[
+['Carrot','🥕','Carrots contain beta-carotene that your body converts into vitamin A.'],
+['Broccoli','🥦','Broccoli provides fiber and vitamin C.'],
+['Spinach','🥬','Spinach contains folate and other vitamins.'],
+['Cucumber','🥒','Cucumbers contain lots of water and contribute to hydration.'],
+['Bell pepper','🫑','Bell peppers provide vitamin C and other nutrients.'],
+['Green beans','🫛','Green beans provide fiber and vitamins.'],
+['Tomato','🍅','Tomatoes contain vitamin C and lycopene. They are botanically fruits but used as vegetables in meals.'],
+['Zucchini','🥒','Zucchini provides water and nutrients, including vitamin C.'],
+['Cauliflower','🥦','Cauliflower provides fiber and vitamin C.'],
+['Cabbage','🥬','Cabbage provides fiber and vitamin K.']
+],
+fruit:[
+['Apple','🍎','Apples have natural sugar for energy plus fiber, especially with the skin.'],
+['Banana','🍌','Bananas provide carbohydrates and potassium.'],
+['Orange','🍊','Oranges provide vitamin C and fiber when eaten whole.'],
+['Strawberries','🍓','Strawberries provide vitamin C and fiber.'],
+['Mango','🥭','Mango provides vitamin C and vitamin A precursors.'],
+['Pineapple','🍍','Pineapple provides vitamin C.'],
+['Grapes','🍇','Grapes contain water and natural sugars.'],
+['Pear','🍐','Pears provide fiber, especially with the skin.'],
+['Kiwi','🥝','Kiwis provide vitamin C and fiber.'],
+['Watermelon','🍉','Watermelon contains lots of water and can help with hydration.']
+],
+grain:[
+['Whole-wheat bread','🍞','Whole-wheat bread provides carbohydrates for energy and fiber.'],
+['Oatmeal','🥣','Oats provide carbohydrates and a type of fiber called beta-glucan.'],
+['Brown rice','🍚','Brown rice contains more fiber than refined white rice.'],
+['Barley','🌾','Barley is a grain that provides fiber and carbohydrates.'],
+['Quinoa','🌾','Quinoa provides carbohydrates, fiber and some protein.'],
+['Whole-wheat pasta','🍝','Whole-wheat pasta provides energy and more fiber than many refined pastas.'],
+['Bulgur','🌾','Bulgur is a whole grain rich in fiber.'],
+['Farro','🌾','Farro is a wheat grain that supplies carbohydrates and fiber.'],
+['Rye bread','🍞','Whole-grain rye bread provides fiber and carbohydrates.'],
+['Corn tortilla','🫓','Corn tortillas are grain foods that provide carbohydrates for energy.']
+],
+starch:[
+['Baked potato','🥔','Potatoes provide starchy carbohydrates, potassium and vitamin C.'],
+['Sweet potato','🍠','Sweet potatoes provide carbohydrates and beta-carotene.'],
+['Corn on the cob','🌽','Corn contains starchy carbohydrates and fiber.'],
+['Plantain','🍌','Plantains are starchy fruits that provide carbohydrates for energy.'],
+['Butternut squash','🎃','Butternut squash provides carbohydrates and beta-carotene.'],
+['Yam','🍠','Yams are starchy foods that provide carbohydrates and fiber.'],
+['Parsnip','🥕','Parsnips are root vegetables that provide carbohydrates and fiber.'],
+['Acorn squash','🎃','Acorn squash provides carbohydrates, fiber and potassium.'],
+['Taro','🥔','Cooked taro is a starchy root that provides carbohydrates; taro should not be eaten raw.'],
+['Pumpkin','🎃','Pumpkin provides carbohydrates and beta-carotene.']
+],
+treat:[
+['Doughnut','🍩','Doughnuts often contain added sugar. Having treats sometimes can fit into a balanced eating pattern.'],
+['Cookie','🍪','Many cookies contain added sugar. Enjoying treats does not make a food choice bad.'],
+['Cupcake','🧁','Cupcakes often contain added sugar; different foods offer different nutrients.'],
+['Brownie','🍫','Brownies often have added sugar, and portions vary.'],
+['Ice cream','🍨','Ice cream usually contains added sugar and can provide some calcium.'],
+['Fruit popsicle','🍧','Some popsicles contain added sugar; check labels for the amount.'],
+['Chocolate bar','🍫','Many chocolate bars contain added sugar. Foods can be enjoyed for taste too.'],
+['Slice of pie','🥧','Pie often contains added sugar; recipes and portions vary.'],
+['Cinnamon roll','🥮','Cinnamon rolls often contain added sugar. Eating variety matters.'],
+['Pudding','🍮','Pudding often contains added sugar and may provide some calcium if made with milk.']
+],
+drink:[
+['Water','💧','Water keeps you hydrated without added sugar.'],
+['Milk','🥛','Milk supplies fluids plus calcium and protein.'],
+['Unsweetened tea','🫖','Unsweetened tea has no added sugar, but some kinds contain caffeine.'],
+['100% fruit juice','🧃','100% fruit juice contains natural sugars, but whole fruit generally has more fiber.'],
+['Regular soda','🥤','Regular soda can contain lots of added sugar and few nutrients.'],
+['Sparkling water','💧','Plain sparkling water is a hydrating choice without added sugar.'],
+['Coconut water','🥥','Coconut water provides fluid and potassium; check labels for added sugar.'],
+['Sports drink','🧃','Many sports drinks contain added sugar and usually are not needed for everyday activities.'],
+['Lemonade','🍋','Many lemonades contain added sugar; the amount depends on the recipe.'],
+['Hot chocolate','☕','Hot chocolate often has added sugar; the amount varies by recipe.']
+]
+};
+const CATEGORIES=['protein','vegetable','fruit','grain','starch','treat','drink'];
+const CATEGORY_LABEL={protein:'Protein',vegetable:'Vegetable',fruit:'Fruit',grain:'Grain',starch:'Starchy food',treat:'Treat',drink:'Drink'};
+const THEMES=[
+['Food Forest','#89e4fc','#e0f8b4','#248c66'],['River Run','#80d5fa','#e7f0bb','#2b8e96'],
+['Harvest Heights','#9ed7f5','#ffe3a0','#9d9946'],['Garden Gauntlet','#a6daf7','#cbed9e','#2f9777'],
+['Canyon Crossing','#9edafc','#f6d5a3','#b37c52'],['Skyway Orchard','#72bbf5','#d5d5fa','#676db6'],
+['Market Mountains','#95cdea','#e1f4bc','#5d8e5d'],['Rainbow Ridge','#8ac6e8','#e6c1ff','#995bba'],
+['Summit Sprint','#83bddc','#e8f7fa','#467f92'],['Fuel-Up Finale','#8aaee0','#f9d4e8','#8a68a6']
+];
+const HEROES=[{n:'Ari',e:'👧🏿',skin:'#6b4128',hair:'#271a19',shirt:'#fa7f90',style:'puffs'},{n:'Mia',e:'👧🏼',skin:'#edc1a1',hair:'#8b5431',shirt:'#a394f7',style:'long'},{n:'Jay',e:'👦🏿',skin:'#6b4128',hair:'#1e1721',shirt:'#24cbbb',style:'short'},{n:'Leo',e:'👦🏼',skin:'#edc1a1',hair:'#513625',shirt:'#53a7fb',style:'short'}];
+const W=960,H=520,FLOOR=440,WORLD=4200;
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),overlay=document.getElementById('overlay'),panel=document.getElementById('panel');
+const keys={ArrowLeft:false,ArrowRight:false,ArrowUp:false,ArrowDown:false};
+let hero=0,level=0,terrain=[],hazards=[],pickups=[],stars=[],player={x:70,y:320,w:32,h:58,vy:0,ground:false},cam=0;
+let score=0,hearts=3,checkpoint=70,invulnerable=0,found=new Set(),frame=0,playing=false,paused=true,modal=false,audio=false,soundCtx=null,mealCursor=0,menuCursor=0;
+let selectedMeal=new Set(),modalType='',modalFood=null;
+function tone(freq=520){if(!audio)return;try{soundCtx??=new(window.AudioContext||window.webkitAudioContext)();const o=soundCtx.createOscillator(),g=soundCtx.createGain();o.connect(g);g.connect(soundCtx.destination);o.frequency.value=freq;g.gain.value=.035;o.start();o.stop(soundCtx.currentTime+.09)}catch(e){}}
+function foodFor(n){return CATEGORIES.map(g=>({category:g,name:DATA[g][n][0],emoji:DATA[g][n][1],fact:DATA[g][n][2]}))}
+function clearKeys(){Object.keys(keys).forEach(k=>keys[k]=false)}
+function show(html,type){modal=true;paused=true;modalType=type;overlay.hidden=false;panel.innerHTML=html;clearKeys()}
+function hide(){modal=false;paused=false;modalType='';overlay.hidden=true;clearKeys()}
+function updateHud(){document.getElementById('levelhud').textContent='Level '+(level+1)+'/10';document.getElementById('health').textContent='❤️'.repeat(hearts)+'🤍'.repeat(3-hearts);document.getElementById('foodhud').textContent='Foods '+found.size+'/7';document.getElementById('scorehud').textContent='⭐ '+score;document.getElementById('subtitle').textContent='The Fuel-Up Adventure · '+THEMES[level][0]}
+function addRect(x,y,w,h,kind='ground'){terrain.push({x,y,w,h,kind})}
+function buildLevel(n,retainScore=true){
+level=n;if(!retainScore)score=0;hearts=3;found=new Set();terrain=[];hazards=[];pickups=[];stars=[];checkpoint=70;invulnerable=0;
+const pits=[720,1480,2260,3110,3620],number=Math.min(5,1+Math.floor(n/2)),gap=Math.min(116,58+n*7);let left=0;
+for(let i=0;i<number;i++){const x=pits[i];addRect(left,FLOOR,x-left,H-FLOOR+200);left=x+gap}addRect(left,FLOOR,WORLD-left,H-FLOOR+200);
+function addStairs(start){
+for(let i=0;i<3;i++)addRect(start+i*102,FLOOR-32*(i+1),98,32*(i+1),'step');
+addRect(start+306,FLOOR-120,270,23,'beam');
+for(let i=0;i<3;i++)addRect(start+580+i*102,FLOOR-96+i*32,98,96-i*32,'step');
+}
+addStairs(960);
+if(n>=3)addStairs(2630);
+if(n>=2)for(let i=0;i<Math.min(2+n,7);i++){const x=1950+i*85,y=FLOOR-74-(i%3)*26;addRect(x,y,65,18,'block')}
+hazards.push({x:330,type:'log',w:48});
+if(n>=1)hazards.push({x:1850,type:'branch',w:125});
+if(n>=4)hazards.push({x:3250,type:'log',w:50});
+if(n>=6)hazards.push({x:3420,type:'branch',w:120});
+const food=foodFor(n);
+const positions=[
+[220,FLOOR-55],[850,FLOOR-55],[1350,FLOOR-166],[1940,FLOOR-55],
+[2440,FLOOR-55],[n>=3?3030:2830,n>=3?FLOOR-166:FLOOR-55],[3870,FLOOR-55]
+];
+for(let i=0;i<7;i++)pickups.push({x:positions[i][0],y:positions[i][1],food:food[i],done:false});
+for(let i=0;i<14;i++){const x=420+i*250;stars.push({x,y:FLOOR-103,done:false})}
+player={x:70,y:FLOOR-58,w:32,h:58,vy:0,ground:true,duck:false};cam=0;playing=true;paused=false;updateHud()
+}
+function introMenu(){
+playing=false;menuCursor=hero;
+let h='<h2>🌟 Choose Your Hero</h2><p>Four equally capable adventurers. Navigate with ← → and press ↑ to start.</p><div class="choices">';
+HEROES.forEach((v,i)=>h+='<button data-hero="'+i+'" class="'+(hero===i?'selected':'')+'"><span class="avatar">'+v.e+'</span>'+v.n+'</button>');
+h+='</div><button id="start">Start at Level 1</button> <button id="browse">Choose a Level</button>';
+show(h,'hero');
+panel.querySelectorAll('[data-hero]').forEach(b=>b.onclick=()=>{hero=Number(b.dataset.hero);introMenu()});
+document.getElementById('start').onclick=()=>{buildLevel(0,false);levelIntro()};
+document.getElementById('browse').onclick=levelMenu;
+}
+function levelMenu(){
+playing=false;
+let h='<h2>🗺️ Choose a Level</h2><p>All 10 levels are available for testing. Each has seven different foods.</p><div class="levels">';
+THEMES.forEach((v,i)=>h+='<button data-level="'+i+'" class="'+(menuCursor===i?'selected':'')+'"><strong>'+(i+1)+'</strong>'+v[0]+'</button>');
+h+='</div><button id="heroBack">Choose Hero</button>';
+show(h,'levels');panel.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{buildLevel(Number(b.dataset.level),true);levelIntro()});
+document.getElementById('heroBack').onclick=introMenu
+}
+function levelIntro(){
+show('<h2>🌿 Level '+(level+1)+': '+THEMES[level][0]+'</h2><p>Find seven new foods: a protein, vegetable, fruit, grain, starchy food, treat and drink.</p><p>Each level becomes more challenging. Jump over gaps, climb steps, cross beams and collect food placed up high!</p><p><b>↑ or → to begin.</b></p><button id="continue">Explore ▶</button>','message');
+document.getElementById('continue').onclick=hide
+}
+function foodMessage(p){
+found.add(p.food.category);updateHud();tone(740);
+show('<h2>'+p.food.emoji+' '+p.food.name+'</h2><p><strong>'+CATEGORY_LABEL[p.food.category]+'</strong></p><p>'+p.food.fact+'</p><p>Press ↑ or → to keep moving.</p><button id="continue">Continue ▶</button>','message');
+document.getElementById('continue').onclick=hide
+}
+function hit(){
+if(invulnerable>0)return;hearts--;tone(160);invulnerable=100;updateHud();
+if(hearts<=0){hearts=3;player.x=checkpoint;player.y=FLOOR-58;player.vy=0;
+show('<h2>💪 Try Again!</h2><p>You keep the foods you discovered and your points. Restart from your checkpoint with three hearts.</p><button id="continue">Keep going ▶</button>','message');
+document.getElementById('continue').onclick=()=>{updateHud();hide()};return}
+player.x=Math.max(checkpoint,player.x-105);player.y=FLOOR-130;player.vy=-3
+}
+function respawn(){hit();player.x=checkpoint;player.y=FLOOR-160;player.vy=0}
+function intersects(x,y,w,h,r){return x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y}
+function overlapsPlayer(r){return intersects(player.x,player.y,player.w,player.h,r)}
+function applyPhysics(){
+let x=player.x,y=player.y;const wantDuck=keys.ArrowDown,underRoof=terrain.some(p=>p.kind==='beam'&&intersects(x,y+player.h-58,player.w,58,p));
+player.duck=wantDuck||underRoof&&player.duck;
+const newHeight=player.duck?32:58;
+if(newHeight!==player.h){player.y+=player.h-newHeight;player.h=newHeight}
+let dx=(keys.ArrowRight?1:0)-(keys.ArrowLeft?1:0);dx*=player.duck?2.2:4.7;
+let nx=Math.min(WORLD-35,Math.max(0,player.x+dx));
+for(const p of terrain){if(intersects(nx,player.y,player.w,player.h,p)&&!intersects(player.x,player.y,player.w,player.h,p)){
+if(dx>0)nx=Math.min(nx,p.x-player.w);
+if(dx<0)nx=Math.max(nx,p.x+p.w);
+}}
+player.x=nx;
+if(keys.ArrowUp&&player.ground&&!player.duck){player.vy=-13.2;player.ground=false;tone(420)}
+const oldY=player.y;
+player.vy=Math.min(13.5,player.vy+.58);
+player.y+=player.vy;player.ground=false;
+for(const p of terrain){if(!intersects(player.x,player.y,player.w,player.h,p))continue;
+if(player.vy>=0&&oldY+player.h<=p.y+5){player.y=p.y-player.h;player.vy=0;player.ground=true}
+else if(player.vy<0&&oldY>=p.y+p.h-5){player.y=p.y+p.h;player.vy=0}
+}
+if(player.y>H+130)respawn();
+const hazardsOn=hazards.filter(h=>h.type==='log'?overlapsPlayer({x:h.x,y:FLOOR-50,w:h.w,h:50}):overlapsPlayer({x:h.x,y:FLOOR-93,w:h.w,h:55}));
+if(hazardsOn.length)hit();
+if(invulnerable>0)invulnerable--;
+if(player.x>WORLD-250&&found.size===7){fuelStation();return}
+if(player.x>WORLD-220&&found.size<7&&frame%120===0){document.getElementById('subtitle').textContent='Find all 7 foods before visiting the Fuel-Up Station!'}
+for(const p of pickups)if(!p.done&&intersects(player.x,player.y,player.w,player.h,{x:p.x-15,y:p.y-24,w:43,h:54})){p.done=true;foodMessage(p);break}
+for(const p of stars)if(!p.done&&intersects(player.x,player.y,player.w,player.h,{x:p.x-15,y:p.y-20,w:42,h:40})){p.done=true;score+=5;tone(920);updateHud()}
+if(player.x>=2250)checkpoint=2230;else if(player.x>=1640)checkpoint=1620;else if(player.x>=920)checkpoint=900;
+cam=Math.max(0,Math.min(WORLD-W,player.x-270))
+}
+function fuelStation(){
+selectedMeal=new Set();mealCursor=0;renderMeal()
+}
+function renderMeal(message='Pick a varied meal or snack using your seven discoveries.'){
+let h='<h2>🏁 Fuel-Up Station · Level '+(level+1)+'</h2><p>Choose a protein, a fruit or vegetable, a grain or starchy food, and a drink. A treat is optional, not forbidden!</p><div class="food-grid">';
+foodFor(level).forEach((v,i)=>h+='<button data-pick="'+i+'" class="'+(selectedMeal.has(i)?'selected ':'')+(mealCursor===i?'cursor':'')+'">'+v.emoji+'<br>'+v.name+'</button>');
+h+='</div><p id="feedback">'+message+'</p><button id="check">Check my meal</button><p><small>Arrow controls: ← → highlight, ↑ select, ↓ check. Touch users can tap the food buttons.</small></p>';
+show(h,'meal');panel.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.pick);mealCursor=i;if(selectedMeal.has(i))selectedMeal.delete(i);else selectedMeal.add(i);renderMeal()});
+document.getElementById('check').onclick=checkMeal
+}
+function checkMeal(){
+const sets=new Set([...selectedMeal].map(i=>CATEGORIES[i]));
+const missing=[];
+if(!sets.has('protein'))missing.push('a protein');
+if(!sets.has('fruit')&&!sets.has('vegetable'))missing.push('a fruit or vegetable');
+if(!sets.has('grain')&&!sets.has('starch'))missing.push('a grain or starchy food');
+if(!sets.has('drink'))missing.push('a drink');
+if(missing.length){renderMeal('Good start! Try adding '+missing.join(', ')+'. Different foods provide different nutrients.');return}
+score+=75;updateHud();tone(1100);
+const last=level===9;
+show('<h2>🏆 '+(last?'Adventure Complete!':'Level '+(level+1)+' Complete!')+'</h2><p>⭐ Score: '+score+' · Seven foods discovered!</p><p>You chose a mixture of nutrients and hydration. No single food has to do everything!</p>'+
+(last?'<p>You finished all 10 levels! Awesome exploring.</p><button id="nextlevel">Replay from Level 1</button>':'<button id="nextlevel">Next Level ▶</button>')+
+' <button id="choose">Choose Level</button>','victory');
+document.getElementById('nextlevel').onclick=()=>{buildLevel(last?0:level+1,true);levelIntro()};
+document.getElementById('choose').onclick=levelMenu
+}
+function handleMenuKey(k){
+if(modalType==='message'&&(k==='ArrowRight'||k==='ArrowUp'||k==='Enter')){panel.querySelector('#continue')?.click();return}
+if(modalType==='hero'){
+if(k==='ArrowLeft'||k==='ArrowRight'){hero=(hero+(k==='ArrowRight'?1:3))%4;introMenu()}
+if(k==='ArrowUp'||k==='Enter'){buildLevel(0,false);levelIntro()}
+if(k==='ArrowDown')levelMenu();
+return}
+if(modalType==='levels'){
+if(k==='ArrowLeft'||k==='ArrowRight'){menuCursor=(menuCursor+(k==='ArrowRight'?1:9))%10;levelMenu()}
+if(k==='ArrowUp'||k==='Enter'){buildLevel(menuCursor,true);levelIntro()}
+if(k==='ArrowDown')introMenu();
+return}
+if(modalType==='meal'){
+if(k==='ArrowLeft'||k==='ArrowRight'){mealCursor=(mealCursor+(k==='ArrowRight'?1:6))%7;renderMeal()}
+if(k==='ArrowUp'){if(selectedMeal.has(mealCursor))selectedMeal.delete(mealCursor);else selectedMeal.add(mealCursor);renderMeal()}
+if(k==='ArrowDown'||k==='Enter')checkMeal();
+return}
+if(modalType==='victory'){
+if(k==='ArrowUp'||k==='ArrowRight'||k==='Enter')panel.querySelector('#nextlevel')?.click();
+if(k==='ArrowLeft')levelMenu()
+}}
+function draw(){
+const bg=THEMES[level],sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,bg[1]);sky.addColorStop(1,bg[2]);ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ctx.fillStyle='#ffffff60';for(let i=0;i<10;i++){let x=(i*210-(cam*.12)%210+W)%W;ctx.beginPath();ctx.ellipse(x,80+i%3*48,62,18,0,0,7);ctx.fill()}
+ctx.fillStyle=bg[3];for(let i=0;i<10;i++){let x=(i*230-cam*.24)%(W+250)+80;ctx.beginPath();ctx.ellipse(x,434,125,160,0,0,7);ctx.fill()}
+ctx.save();ctx.translate(-cam,0);
+for(let x=0;x<WORLD;x+=190){ctx.fillStyle='#79552f';ctx.fillRect(x+52,255,18,183);ctx.fillStyle='#32935c';ctx.beginPath();ctx.arc(x+60,275,58,0,7);ctx.fill();ctx.fillStyle='#4ab86b';ctx.beginPath();ctx.arc(x+92,295,34,0,7);ctx.fill()}
+for(const p of terrain){
+ctx.fillStyle=p.kind==='beam'?'#7353a2':p.kind==='block'?'#568eaf':p.kind==='step'?'#9e793f':'#5d9b58';
+ctx.fillRect(p.x,p.y,p.w,p.h);ctx.fillStyle=p.kind==='ground'?'#8ad568':'#e3c570';ctx.fillRect(p.x,p.y,p.w,7);
+if(p.kind==='step'||p.kind==='beam'){ctx.fillStyle='#ffffff22';ctx.fillRect(p.x+7,p.y+9,p.w-14,4)}
+}
+for(const o of hazards){if(o.type==='log'){ctx.fillStyle='#a96431';ctx.fillRect(o.x,FLOOR-50,o.w,50);ctx.fillStyle='#d89b58';ctx.fillRect(o.x+5,FLOOR-42,o.w-10,31)}else{ctx.fillStyle='#7d553b';ctx.fillRect(o.x,FLOOR-93,o.w,55);ctx.fillStyle='#4fac6b';ctx.fillRect(o.x-6,FLOOR-101,o.w+12,13)}}
+ctx.font='32px system-ui';
+for(const p of pickups)if(!p.done)ctx.fillText(p.food.emoji,p.x-7,p.y+Math.sin(frame/16+p.x)*5);
+ctx.font='24px system-ui';for(const p of stars)if(!p.done)ctx.fillText('⭐',p.x,p.y+Math.sin(frame/14+p.x)*4);
+ctx.fillStyle='#fde68a';ctx.fillRect(3930,FLOOR-145,12,145);ctx.fillStyle='#fff2c5';ctx.fillRect(3942,FLOOR-145,212,75);ctx.fillStyle='#2f4252';ctx.font='bold 20px sans-serif';ctx.fillText('FUEL-UP',3960,FLOOR-117);ctx.fillText('STATION',3960,FLOOR-92);
+if(playing){
+const v=HEROES[hero],x=player.x,y=player.y;
+if(invulnerable%10<7){ctx.fillStyle=v.skin;ctx.fillRect(x+6,y+4,23,21);ctx.fillStyle=v.hair;ctx.fillRect(x+5,y,25,9);
+if(v.style==='puffs'){ctx.fillRect(x-2,y+2,10,13);ctx.fillRect(x+26,y+2,10,13)}
+if(v.style==='long')ctx.fillRect(x+25,y+7,8,24);
+ctx.fillStyle=v.shirt;ctx.fillRect(x+2,y+25,30,player.h-30);ctx.fillStyle='#233253';ctx.fillRect(x+3,y+player.h-9,11,9);ctx.fillRect(x+19,y+player.h-9,11,9);ctx.fillStyle='#141d2b';ctx.fillRect(x+23,y+14,3,3)}}
+ctx.restore();ctx.fillStyle='#1c4251';ctx.font='bold 14px sans-serif';ctx.fillText('Level '+(level+1)+' · '+THEMES[level][0],14,H-12)
+}
+function animate(){requestAnimationFrame(animate);frame++;if(playing&&!paused)applyPhysics();draw()}
+document.addEventListener('keydown',e=>{
+if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key))e.preventDefault();
+if(modal){if(!e.repeat)handleMenuKey(e.key);return}
+if(keys.hasOwnProperty(e.key))keys[e.key]=true;
+if(e.key==='Escape'&&playing)paused=!paused
+});
+document.addEventListener('keyup',e=>{if(keys.hasOwnProperty(e.key))keys[e.key]=false});
+document.addEventListener('blur',clearKeys);
+for(const b of document.querySelectorAll('[data-arrow]')){
+const k=b.dataset.arrow;
+b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);if(modal){handleMenuKey(k);return}keys[k]=true});
+for(const t of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(t,e=>{keys[k]=false});
+}
+document.getElementById('pause').onclick=()=>{if(playing&&!modal){paused=!paused;document.getElementById('pause').textContent=paused?'Resume':'Pause';clearKeys()}};
+document.getElementById('restart').onclick=()=>{buildLevel(level,true);levelIntro()};
+document.getElementById('picklevel').onclick=levelMenu;
+document.getElementById('mute').onclick=()=>{audio=!audio;document.getElementById('mute').textContent=audio?'🔊 Sound on':'🔇 Sound off'};
+introMenu();requestAnimationFrame(animate);
+</script></body></html>
